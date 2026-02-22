@@ -1,3 +1,4 @@
+import type { Slide } from '../generator';
 import {
   Storage,
   StorageItem,
@@ -19,6 +20,66 @@ const createId = () => {
   return `cn_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
+const normalizeSlides = (slides: unknown): Slide[] => {
+  if (!Array.isArray(slides)) {
+    return [];
+  }
+
+  if (slides.every((slide) => typeof slide === 'string')) {
+    const textSlides = slides as string[];
+    return textSlides.slice(0, 8).map((body, index) => ({
+      title: `${index + 1}번 슬라이드`,
+      body,
+    }));
+  }
+
+  return slides
+    .filter(
+      (slide): slide is Slide =>
+        typeof slide === 'object' &&
+        slide !== null &&
+        'title' in slide &&
+        'body' in slide &&
+        typeof slide.title === 'string' &&
+        typeof slide.body === 'string',
+    )
+    .slice(0, 8);
+};
+
+const normalizeItem = (item: unknown): StorageItem | null => {
+  if (
+    typeof item !== 'object' ||
+    item === null ||
+    !('id' in item) ||
+    !('topic' in item) ||
+    !('keywords' in item) ||
+    !('slides' in item)
+  ) {
+    return null;
+  }
+
+  const candidate = item as Record<string, unknown>;
+  if (typeof candidate.id !== 'string' || typeof candidate.topic !== 'string') {
+    return null;
+  }
+
+  const keywords = Array.isArray(candidate.keywords)
+    ? candidate.keywords.filter((keyword): keyword is string => typeof keyword === 'string')
+    : [];
+
+  const createdAt = typeof candidate.createdAt === 'string' ? candidate.createdAt : nowIso();
+  const updatedAt = typeof candidate.updatedAt === 'string' ? candidate.updatedAt : createdAt;
+
+  return {
+    id: candidate.id,
+    topic: candidate.topic,
+    keywords,
+    slides: normalizeSlides(candidate.slides),
+    createdAt,
+    updatedAt,
+  };
+};
+
 export class LocalStorageStorage implements Storage {
   private readAll(): StorageItem[] {
     if (!isBrowser()) {
@@ -31,8 +92,10 @@ export class LocalStorageStorage implements Storage {
     }
 
     try {
-      const parsed = JSON.parse(raw) as StorageItem[];
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed = JSON.parse(raw) as unknown[];
+      return Array.isArray(parsed)
+        ? parsed.map(normalizeItem).filter((item): item is StorageItem => item !== null)
+        : [];
     } catch {
       return [];
     }
