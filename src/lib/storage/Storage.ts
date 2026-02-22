@@ -1,10 +1,12 @@
+import type { Slide } from '../generator';
+
 export interface StorageItem {
   id: string;
   createdAt: string;
   updatedAt: string;
   topic: string;
   keywords: string[];
-  slides: string[];
+  slides: Slide[];
 }
 
 export type StorageCreateInput = Omit<StorageItem, 'id' | 'createdAt' | 'updatedAt'>;
