@@ -136,7 +136,15 @@ export class LocalStorageStorage implements Storage {
     const items = this.readAll();
 
     if (!('id' in input) || !input.id) {
-      const created = this.createItem(input);
+      if (input.topic == null || input.keywords == null || input.slides == null) {
+        throw new Error('Storage create input is missing required fields.');
+      }
+
+      const created = this.createItem({
+        topic: input.topic,
+        keywords: input.keywords,
+        slides: input.slides,
+      });
       this.writeAll([created, ...items]);
       return created;
     }
